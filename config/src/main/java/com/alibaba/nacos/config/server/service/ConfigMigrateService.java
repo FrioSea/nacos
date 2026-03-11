@@ -445,6 +445,9 @@ public class ConfigMigrateService {
      * @param deletedConfigInfoGrayStateWrapper the deleted config info gray state wrapper
      */
     public void checkDeletedConfigGrayMigrateState(ConfigInfoStateWrapper deletedConfigInfoGrayStateWrapper) {
+        if (deletedConfigInfoGrayStateWrapper == null) {
+            return;
+        }
         String tenant = deletedConfigInfoGrayStateWrapper.getTenant();
         if (!ConfigCompatibleConfig.getInstance().isNamespaceCompatibleMode()) {
             return;
@@ -458,7 +461,7 @@ public class ConfigMigrateService {
         }
         ConfigInfoStateWrapper targetConfigInfoGrayStateWrapper = configInfoGrayPersistService.findConfigInfo4GrayState(
                 deletedConfigInfoGrayStateWrapper.getDataId(), deletedConfigInfoGrayStateWrapper.getGroup(),
-                deletedConfigInfoGrayStateWrapper.getGrayName(), targetTenant);
+                targetTenant, deletedConfigInfoGrayStateWrapper.getGrayName());
         if (targetConfigInfoGrayStateWrapper == null) {
             return;
         }
@@ -966,6 +969,10 @@ public class ConfigMigrateService {
         
         ConfigInfo configInfo = new ConfigInfo(configForm.getDataId(), configForm.getGroup(),
                 configForm.getNamespaceId(), configForm.getAppName(), configForm.getContent());
+        // set old md5
+        if (StringUtils.isNotBlank(configRequestInfo.getCasMd5())) {
+            configInfo.setMd5(configRequestInfo.getCasMd5());
+        }
         configInfo.setType(configForm.getType());
         configInfo.setEncryptedDataKey(configForm.getEncryptedDataKey());
         

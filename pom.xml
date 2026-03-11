@@ -88,7 +88,7 @@
     </issueManagement>
     
     <properties>
-        <revision>3.2.0-SNAPSHOT</revision>
+        <revision>3.2.0-BETA</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Compiler settings properties -->
@@ -116,7 +116,7 @@
         <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
         <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <soptbugs-maven-plugin.version>4.8.6.2</soptbugs-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.8.6.2</spotbugs-maven-plugin.version>
         <sonar-maven-plugin.version>3.0.2</sonar-maven-plugin.version>
         <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
         <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
@@ -345,6 +345,10 @@
                         <exclude>**/failover_test/**</exclude>
                         <exclude>lefthook.yml</exclude>
                         <exclude>.vscode/**</exclude>
+                        <exclude>.cursor/**</exclude>
+                        <exclude>.agents/**</exclude>
+                        <exclude>.qoder/**</exclude>
+                        <exclude>skills/**</exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -414,7 +418,12 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>${soptbugs-maven-plugin.version}</version>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <configuration>
+                    <excludeFilterFile>style/spotbugs-exclude.xml</excludeFilterFile>
+                    <effort>Max</effort>
+                    <threshold>High</threshold>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
@@ -523,21 +532,7 @@
             </properties>
             
             <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${maven-gpg-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
+
             </build>
         </profile>
         <profile>
@@ -610,7 +605,7 @@
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
-                <version>${soptbugs-maven-plugin.version}</version>
+                <version>${spotbugs-maven-plugin.version}</version>
             </plugin>
         </plugins>
     </reporting>
@@ -645,6 +640,7 @@
         <module>maintainer-client</module>
         <module>client-basic</module>
         <module>ai</module>
+        <module>copilot</module>
         <module>mcp-registry-adaptor</module>
     </modules>
     
@@ -1010,6 +1006,16 @@
                 <groupId>com.alipay.sofa</groupId>
                 <artifactId>rpc-grpc-impl</artifactId>
                 <version>${rpc-grpc-impl.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.protobuf</groupId>
+                        <artifactId>protobuf-java</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.grpc</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             
             <!-- Third-party libs -->
