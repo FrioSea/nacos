@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -39,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -171,6 +174,43 @@ class ExternalPermissionPersistServiceImplTest {
             .thenThrow(findException);
         assertSame(findException, assertThrows(CannotGetJdbcConnectionException.class,
             () -> service.findPermissionsLike4Page("role", 2, 20)));
+    }
+    
+    @Test
+    void testOracleDialectUsesResourcesColumn() {
+        when(dataSourceService.getDataSourceType()).thenReturn("oracle");
+        ExternalPermissionPersistServiceImpl oracleService =
+            new ExternalPermissionPersistServiceImpl();
+        oracleService.init();
+        
+        oracleService.addPermission("role", "resource", "action");
+        Mockito.verify(jdbcTemplate)
+            .update("INSERT INTO permissions (role, resources, action) VALUES (?, ?, ?)", "role",
+                "resource", "action");
+        
+        oracleService.deletePermission("role", "resource", "action");
+        Mockito.verify(jdbcTemplate)
+            .update("DELETE FROM permissions WHERE role=? AND resources=? AND action=?", "role",
+                "resource", "action");
+    }
+    
+    @Test
+    void testOracleDialectSelectsResourcesWithAliasAndPaging() {
+        when(dataSourceService.getDataSourceType()).thenReturn("oracle");
+        when(jdbcTemplate.queryForObject(any(), any(), eq(Integer.class))).thenReturn(1);
+        when(jdbcTemplate.query(any(String.class), any(Object[].class), any(RowMapper.class)))
+            .thenReturn(Collections.emptyList());
+        ExternalPermissionPersistServiceImpl oracleService =
+            new ExternalPermissionPersistServiceImpl();
+        oracleService.init();
+        
+        oracleService.getPermissions("role", 1, 10);
+        
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(jdbcTemplate)
+            .query(sqlCaptor.capture(), any(Object[].class), any(RowMapper.class));
+        assertTrue(sqlCaptor.getValue().contains("resources AS \"resource\""));
+        assertTrue(sqlCaptor.getValue().contains("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"));
     }
     
     private ExternalPermissionPersistServiceImpl serviceWithHelper(

@@ -19,6 +19,7 @@ package com.alibaba.nacos.plugin.auth.impl.persistence.handler;
 import com.alibaba.nacos.plugin.auth.impl.persistence.handler.support.DefaultPageHandlerAdapter;
 import com.alibaba.nacos.plugin.auth.impl.persistence.handler.support.DerbyPageHandlerAdapter;
 import com.alibaba.nacos.plugin.auth.impl.persistence.handler.support.MysqlPageHandlerAdapter;
+import com.alibaba.nacos.plugin.auth.impl.persistence.handler.support.OraclePageHandlerAdapter;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,15 +34,18 @@ class PageHandlerAdapterFactoryTest {
         PageHandlerAdapterFactory factory = PageHandlerAdapterFactory.getInstance();
         
         assertSame(factory, PageHandlerAdapterFactory.getInstance());
-        assertEquals(3, factory.getHandlerAdapters().size());
+        assertEquals(4, factory.getHandlerAdapters().size());
         assertTrue(factory.getHandlerAdapters().get(0) instanceof MysqlPageHandlerAdapter);
         assertTrue(factory.getHandlerAdapters().get(1) instanceof DerbyPageHandlerAdapter);
-        assertTrue(factory.getHandlerAdapters().get(2) instanceof DefaultPageHandlerAdapter);
-        assertEquals(3, factory.getHandlerAdapterMap().size());
+        assertTrue(factory.getHandlerAdapters().get(2) instanceof OraclePageHandlerAdapter);
+        assertTrue(factory.getHandlerAdapters().get(3) instanceof DefaultPageHandlerAdapter);
+        assertEquals(4, factory.getHandlerAdapterMap().size());
         assertTrue(factory.getHandlerAdapterMap()
             .get(MysqlPageHandlerAdapter.class.getName()) instanceof MysqlPageHandlerAdapter);
         assertTrue(factory.getHandlerAdapterMap()
             .get(DerbyPageHandlerAdapter.class.getName()) instanceof DerbyPageHandlerAdapter);
+        assertTrue(factory.getHandlerAdapterMap()
+            .get(OraclePageHandlerAdapter.class.getName()) instanceof OraclePageHandlerAdapter);
         assertTrue(factory.getHandlerAdapterMap()
             .get(DefaultPageHandlerAdapter.class.getName()) instanceof DefaultPageHandlerAdapter);
     }

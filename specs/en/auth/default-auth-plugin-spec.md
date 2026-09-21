@@ -327,7 +327,8 @@ Explicit visibility permission resources use:
 ```
 
 The exact canonical resource string must be stored in the default RBAC
-`permissions.resource` column. The column must support at least 512 characters
+`permissions.resource` column (named `permissions.resources` on Oracle, because
+`resource` is a reserved word there). The column must support at least 512 characters
 so namespaced resources can be persisted without truncation. Resource matching
 is exact and case-sensitive; the default MySQL schema therefore uses
 `utf8mb4_bin` for this column and `ROW_FORMAT=DYNAMIC` for the `permissions`
@@ -347,7 +348,7 @@ Upgrade scripts for this change are delivered in `distribution/conf`:
 | MySQL | `mysql-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ROW_FORMAT=DYNAMIC, MODIFY COLUMN resource VARCHAR(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;` |
 | Derby | `derby-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ALTER COLUMN resource SET DATA TYPE VARCHAR(512);` |
 | PostgreSQL | `pg-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ALTER COLUMN resource TYPE VARCHAR(512);` |
-| Oracle | `oracle-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions MODIFY (resource VARCHAR2(512 CHAR) NOT NULL);` |
+| Oracle | `oracle-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions MODIFY (resources VARCHAR2(512 CHAR) NOT NULL);` — the column is named `resources` because `resource` is an Oracle reserved word. |
 
 The MySQL script documents these preflight checks:
 

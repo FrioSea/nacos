@@ -266,7 +266,8 @@ LIKE 的默认转义字符，因此嵌入式存储显式声明 `ESCAPE '\'`。�
 @@visibility/{namespaceId}/{resourceType}/{resourceName}
 ```
 
-默认 RBAC `permissions.resource` 列必须保存完整、精确的 canonical 资源字符串。
+默认 RBAC `permissions.resource` 列必须保存完整、精确的 canonical 资源字符串
+（Oracle 上该列名为 `permissions.resources`，因为 `resource` 是 Oracle 保留字）。
 该列至少需要支持 512 个字符，以避免命名空间资源持久化时被截断。资源匹配语义是精确且
 大小写敏感的；因此默认 MySQL schema 对该列使用 `utf8mb4_bin`，并为
 `permissions` 表使用 `ROW_FORMAT=DYNAMIC`，以保证现有 `(role, resource, action)`
@@ -284,7 +285,7 @@ MySQL 迁移，以确保现有 `UNIQUE(role, resource, action)` 索引能够接�
 | MySQL | `mysql-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ROW_FORMAT=DYNAMIC, MODIFY COLUMN resource VARCHAR(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;` |
 | Derby | `derby-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ALTER COLUMN resource SET DATA TYPE VARCHAR(512);` |
 | PostgreSQL | `pg-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions ALTER COLUMN resource TYPE VARCHAR(512);` |
-| Oracle | `oracle-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions MODIFY (resource VARCHAR2(512 CHAR) NOT NULL);` |
+| Oracle | `oracle-upgrade-visibility-permission-resource.sql` | `ALTER TABLE permissions MODIFY (resources VARCHAR2(512 CHAR) NOT NULL);` —— 该列名为 `resources`，因为 `resource` 是 Oracle 保留字。 |
 
 MySQL 脚本包含以下预检查：
 
