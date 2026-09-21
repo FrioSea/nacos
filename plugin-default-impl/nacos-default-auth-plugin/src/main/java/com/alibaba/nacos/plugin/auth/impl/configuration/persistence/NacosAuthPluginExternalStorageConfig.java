@@ -24,11 +24,14 @@ import com.alibaba.nacos.plugin.auth.impl.persistence.ExternalUserPersistService
 import com.alibaba.nacos.plugin.auth.impl.persistence.PermissionPersistService;
 import com.alibaba.nacos.plugin.auth.impl.persistence.RolePersistService;
 import com.alibaba.nacos.plugin.auth.impl.persistence.UserPersistService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 
 /**
- * Nacos auth plugin embedded storage configuration.
+ * Nacos auth plugin embedded storage configuration. Beans are marked with
+ * {@link ConditionalOnMissingBean} so that a database-specific auth plugin (e.g.
+ * nacos-oracle-auth-plugin) can override the persistence services when needed.
  *
  * @author xiweng.yy
  */
@@ -36,16 +39,19 @@ import org.springframework.context.annotation.Conditional;
 public class NacosAuthPluginExternalStorageConfig {
     
     @Bean
+    @ConditionalOnMissingBean(PermissionPersistService.class)
     public PermissionPersistService permissionPersistService() {
         return new ExternalPermissionPersistServiceImpl();
     }
     
     @Bean
+    @ConditionalOnMissingBean(RolePersistService.class)
     public RolePersistService rolePersistService() {
         return new ExternalRolePersistServiceImpl();
     }
     
     @Bean
+    @ConditionalOnMissingBean(UserPersistService.class)
     public UserPersistService userPersistService() {
         return new ExternalUserPersistServiceImpl();
     }

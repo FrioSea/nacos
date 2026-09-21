@@ -18,6 +18,7 @@ package com.alibaba.nacos.plugin.auth.impl.persistence;
 
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.common.utils.StringUtils;
+import com.alibaba.nacos.persistence.constants.PersistenceConstant;
 import com.alibaba.nacos.persistence.datasource.DataSourceService;
 import com.alibaba.nacos.persistence.datasource.DynamicDataSource;
 import com.alibaba.nacos.plugin.auth.impl.persistence.extrnal.AuthExternalPaginationHelperImpl;
@@ -46,6 +47,18 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
     
     private String dataSourceType = "";
     
+    /**
+     * The `resource` column is named `resources` on Oracle, because `resource` is a reserved word
+     * there and cannot be used as an unquoted identifier. The value is always selected with a
+     * `resource` alias so that {@link AuthRowMapperManager#PERMISSION_ROW_MAPPER} keeps reading by
+     * the same column label on every database; on Oracle the alias must be quoted because the
+     * reserved word is not usable as a plain alias either. Overridable so that a dedicated auth
+     * plugin (e.g. nacos-oracle-auth-plugin) can provide database-specific column names.
+     */
+    protected String resourceColumn = "resource";
+    
+    protected String resourceAlias = "resource";
+    
     private static final String PATTERN_STR = "*";
     
     @PostConstruct
@@ -53,6 +66,22 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
         DataSourceService dataSource = DynamicDataSource.getInstance().getDataSource();
         jt = dataSource.getJdbcTemplate();
         dataSourceType = dataSource.getDataSourceType();
+        resolveDialectColumns();
+    }
+    
+    /**
+     * Resolve the physical column names used by the permission SQL for the detected datasource
+     * type. Subclasses may override to force database-specific columns.
+     */
+    protected void resolveDialectColumns() {
+        if (PersistenceConstant.ORACLE.equalsIgnoreCase(dataSourceType)) {
+            resourceColumn = "resources";
+            resourceAlias = "\"resource\"";
+        }
+    }
+    
+    protected String getDataSourceType() {
+        return dataSourceType;
     }
     
     @Override
@@ -60,7 +89,8 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
         AuthPaginationHelper<PermissionInfo> helper = createPaginationHelper();
         
         String sqlCountRows = "SELECT count(*) FROM permissions WHERE ";
-        String sqlFetchRows = "SELECT role,resource,action FROM permissions WHERE ";
+        String sqlFetchRows = "SELECT role," + resourceColumn + " AS " + resourceAlias
+            + ",action FROM permissions WHERE ";
         
         String where = " role= ? ";
         List<String> params = new ArrayList<>();
@@ -99,7 +129,8 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
     @Override
     public void addPermission(String role, String resource, String action) {
         
-        String sql = "INSERT INTO permissions (role, resource, action) VALUES (?, ?, ?)";
+        String sql =
+            "INSERT INTO permissions (role, " + resourceColumn + ", action) VALUES (?, ?, ?)";
         
         try {
             jt.update(sql, role, resource, action);
@@ -119,7 +150,8 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
     @Override
     public void deletePermission(String role, String resource, String action) {
         
-        String sql = "DELETE FROM permissions WHERE role=? AND resource=? AND action=?";
+        String sql =
+            "DELETE FROM permissions WHERE role=? AND " + resourceColumn + "=? AND action=?";
         try {
             jt.update(sql, role, resource, action);
         } catch (CannotGetJdbcConnectionException e) {
@@ -133,7 +165,8 @@ public class ExternalPermissionPersistServiceImpl implements PermissionPersistSe
         AuthPaginationHelper<PermissionInfo> helper = createPaginationHelper();
         
         String sqlCountRows = "SELECT count(*) FROM permissions ";
-        String sqlFetchRows = "SELECT role,resource,action FROM permissions ";
+        String sqlFetchRows = "SELECT role," + resourceColumn + " AS " + resourceAlias
+            + ",action FROM permissions ";
         
         StringBuilder where = new StringBuilder(" WHERE 1=1");
         List<String> params = new ArrayList<>();

@@ -41,6 +41,8 @@ public class PersistenceConstant {
     
     public static final String DERBY = "derby";
     
+    public static final String ORACLE = "oracle";
+    
     public static final String EMPTY_DATASOURCE_PLATFORM = "";
     
     public static final String EMBEDDED_STORAGE = "embeddedStorage";

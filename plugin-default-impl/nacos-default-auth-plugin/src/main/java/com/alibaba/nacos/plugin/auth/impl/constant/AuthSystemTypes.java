@@ -32,5 +32,24 @@ public enum AuthSystemTypes {
     /**
      * LDAP.
      */
-    LDAP
+    LDAP,
+    /**
+     * Oracle adapted auth system: same identity model as {@link #NACOS} (local users table with
+     * bcrypt passwords), selected to activate a database-specific auth plugin such as
+     * nacos-oracle-auth-plugin.
+     */
+    ORACLE;
+    
+    /**
+     * Whether the given auth type uses the Nacos local-user identity model (users table with
+     * bcrypt passwords), so login and admin initialization are supported the same way as
+     * {@link #NACOS}.
+     *
+     * @param authSystemType auth type name, case-insensitive
+     * @return {@code true} if the type is NACOS or ORACLE
+     */
+    public static boolean isNacosCompatible(String authSystemType) {
+        return NACOS.name().equalsIgnoreCase(authSystemType)
+            || ORACLE.name().equalsIgnoreCase(authSystemType);
+    }
 }

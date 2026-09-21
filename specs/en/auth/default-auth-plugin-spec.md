@@ -138,6 +138,27 @@ storage, and authorization continue to use the infrastructure configured by
 `auth:nacos`; those shared settings are not duplicated in `auth:ldap`
 definitions.
 
+## Oracle Auth Type
+
+Setting `nacos.plugin.auth.type=oracle` activates the `nacos-oracle-auth-plugin`
+auth type. It keeps the identity model of `auth:nacos` (local `users` table with
+bcrypt passwords, same login and admin initialization), and additionally swaps
+the permission persistence for the Oracle-adapted implementation: the
+permission table column is named `resources` (because `resource` is an Oracle
+reserved word) and is selected with a quoted `"resource"` alias. Everything
+else — controllers, role and user storage, token, caching, visibility grants —
+continues to use the default auth plugin infrastructure.
+
+Requirements and behavior:
+
+- `nacos.plugin.datasource-dialect.type` must also be `oracle`; the plugin fails
+  fast at startup otherwise.
+- Server deployments with external storage only; a standalone console has no
+  persistence and selects the plugin by type name only.
+- The default auth plugin's external-storage persistence beans are registered
+  with `@ConditionalOnMissingBean`, which is what allows this plugin to override
+  the permission persistence before the default assembly.
+
 ## Identity
 
 The plugin accepts these identity inputs:

@@ -23,16 +23,16 @@ import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 /**
- * When the selected auth plugin type is nacos.
+ * When the selected auth plugin type uses the Nacos identity model (nacos, or a Nacos-compatible
+ * adapted type such as oracle).
  *
  * @author karsonto
  */
 public class ConditionOnNacosAuth implements Condition {
-    
+
     @Override
     public boolean matches(ConditionContext conditionContext,
         AnnotatedTypeMetadata annotatedTypeMetadata) {
-        return AuthSystemTypes.NACOS.name()
-            .equalsIgnoreCase(AuthPluginTypeResolver.resolve());
+        return AuthSystemTypes.isNacosCompatible(AuthPluginTypeResolver.resolve());
     }
 }

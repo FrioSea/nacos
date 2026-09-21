@@ -74,8 +74,8 @@ public class NacosAuthPluginCoreConfig {
             
             @Override
             public void init(AuthenticationManagerBuilder auth) {
-                if (AuthSystemTypes.NACOS.name()
-                    .equalsIgnoreCase(NacosAuthConfigHolder.getInstance()
+                if (AuthSystemTypes.isNacosCompatible(
+                    NacosAuthConfigHolder.getInstance()
                         .getNacosAuthConfigByScope(NacosServerAuthConfig.NACOS_SERVER_AUTH_SCOPE)
                         .getNacosAuthSystemType())) {
                     auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());

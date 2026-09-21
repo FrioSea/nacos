@@ -110,6 +110,21 @@ LDAP 插件持有不可变的 effective 配置快照。Spring LDAP context 和 t
 token 签名和有效期、Nacos 用户与角色存储及授权仍使用 `auth:nacos` 配置的基础设施，相关
 共享字段不复制到 `auth:ldap` definitions。
 
+## Oracle 鉴权类型
+
+设置 `nacos.plugin.auth.type=oracle` 激活 `nacos-oracle-auth-plugin` 鉴权类型。它保持
+`auth:nacos` 的身份模型（本地 `users` 表 + bcrypt 密码，登录和管理员初始化行为一致），
+并将权限持久化替换为 Oracle 适配实现：权限表列名为 `resources`（因 `resource` 是
+Oracle 保留字），查询时以带引号的 `"resource"` 别名返回。其余部分——Controller、用户与
+角色存储、token、缓存、可见性授权——继续使用默认鉴权插件的基础设施。
+
+要求与行为：
+
+- 必须同时配置 `nacos.plugin.datasource-dialect.type=oracle`，否则启动时快速失败；
+- 仅适用于外部存储的 server 部署；独立 console 无持久化，仅按类型名选择插件；
+- 默认鉴权插件的外部存储持久化 Bean 以 `@ConditionalOnMissingBean` 注册，本插件据此在
+  默认装配之前覆盖权限持久化实现。
+
 ## 身份
 
 插件接受以下身份输入：

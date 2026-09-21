@@ -61,7 +61,7 @@ public class NacosAuthPluginWebConfig {
         String authSystemType = NacosAuthConfigHolder.getInstance()
             .getNacosAuthConfigByScope(NacosServerAuthConfig.NACOS_SERVER_AUTH_SCOPE)
             .getNacosAuthSystemType();
-        if (AuthSystemTypes.NACOS.name().equalsIgnoreCase(authSystemType)) {
+        if (AuthSystemTypes.isNacosCompatible(authSystemType)) {
             ignoreUrls = DEFAULT_ALL_PATH_PATTERN;
         } else if (AuthSystemTypes.LDAP.name().equalsIgnoreCase(authSystemType)) {
             ignoreUrls = DEFAULT_ALL_PATH_PATTERN;
