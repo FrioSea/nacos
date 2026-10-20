@@ -30,6 +30,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -44,6 +45,7 @@ import org.springframework.context.annotation.Primary;
  *
  * @author liam
  */
+@Configuration(proxyBeanMethods = false)
 @AutoConfigureBefore(name = {
     "com.alibaba.nacos.plugin.auth.impl.configuration.autoconfiguration.NacosAuthPluginInnerAutoConfig",
     "com.alibaba.nacos.plugin.auth.impl.configuration.autoconfiguration.NacosAuthPluginRemoteAutoConfig"})
