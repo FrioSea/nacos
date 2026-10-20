@@ -127,6 +127,8 @@ token 签名和有效期、Nacos 用户与角色存储及授权仍使用 `auth:n
 - 列表查询通过插件自带的分页实现使用 Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`
   语法，因为默认分页工厂没有 Oracle 适配器，其兜底会执行不带分页子句的 SQL；
 - `LIKE` 查询显式追加 `ESCAPE '\'` 子句，与默认插件对嵌入式 Derby 存储的做法一致；
+- 部署要求 Oracle Database 12c 及以上版本：列表分页使用 12c 引入的 ANSI
+  `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY` 语法；
 - 实际数据源方言不是 Oracle 时，插件在启动时快速失败；
 - 非 Oracle 方言、嵌入式存储或独立 console 下，本装配完全退避，行为与默认鉴权插件
   完全一致。

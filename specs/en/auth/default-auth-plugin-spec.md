@@ -163,6 +163,8 @@ Requirements and behavior:
   without any paging clause.
 - `LIKE` searches append an explicit `ESCAPE '\'` clause, mirroring what the
   default plugin does for embedded Derby storage.
+- Deployment requires Oracle Database 12c or later: list queries paginate with
+  the ANSI `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY` syntax introduced in 12c.
 - The plugin fails fast at startup if the actual datasource dialect is not
   Oracle.
 - On any non-Oracle dialect, embedded storage or a standalone console, the
