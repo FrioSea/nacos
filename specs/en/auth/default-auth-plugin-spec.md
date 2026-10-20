@@ -138,26 +138,36 @@ storage, and authorization continue to use the infrastructure configured by
 `auth:nacos`; those shared settings are not duplicated in `auth:ldap`
 definitions.
 
-## Oracle Auth Type
+## Oracle Storage Adaptation Plugin
 
-Setting `nacos.plugin.auth.type=oracle` activates the `nacos-oracle-auth-plugin`
-auth type. It keeps the identity model of `auth:nacos` (local `users` table with
-bcrypt passwords, same login and admin initialization), and additionally swaps
-the permission persistence for the Oracle-adapted implementation: the
-permission table column is named `resources` (because `resource` is an Oracle
-reserved word) and is selected with a quoted `"resource"` alias. Everything
-else — controllers, role and user storage, token, caching, visibility grants —
-continues to use the default auth plugin infrastructure.
+The `nacos-oracle-auth-plugin` module adapts the default auth plugin's
+external-storage persistence to Oracle databases without modifying any default
+auth plugin class. It is activated by the storage dialect, not by an auth type:
+with `nacos.plugin.datasource-dialect.type=oracle` on a server or merged
+deployment with external storage, it registers primary user, role and
+permission persist services, so every by-type injection of the default persist
+service interfaces resolves to the Oracle-adapted implementations. The default
+persistence beans stay registered but unused.
 
 Requirements and behavior:
 
-- `nacos.plugin.datasource-dialect.type` must also be `oracle`; the plugin fails
-  fast at startup otherwise.
-- Server deployments with external storage only; a standalone console has no
-  persistence and selects the plugin by type name only.
-- The default auth plugin's external-storage persistence beans are registered
-  with `@ConditionalOnMissingBean`, which is what allows this plugin to override
-  the permission persistence before the default assembly.
+- The auth type stays `nacos`: identity model, login, admin initialization,
+  token, caching and visibility grants continue to use the default auth plugin
+  unchanged.
+- The permission column is named `resources` (`resource` is an Oracle reserved
+  word) and is selected with a quoted `"resource"` alias, so the shared
+  permission row mapper keeps reading by the same column label.
+- List queries paginate with Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`
+  syntax through the plugin's own pagination helper, because the default
+  pagination factory has no Oracle adapter and its fallback would run SQL
+  without any paging clause.
+- `LIKE` searches append an explicit `ESCAPE '\'` clause, mirroring what the
+  default plugin does for embedded Derby storage.
+- The plugin fails fast at startup if the actual datasource dialect is not
+  Oracle.
+- On any non-Oracle dialect, embedded storage or a standalone console, the
+  configuration backs off completely and behavior is identical to the default
+  auth plugin.
 
 ## Identity
 

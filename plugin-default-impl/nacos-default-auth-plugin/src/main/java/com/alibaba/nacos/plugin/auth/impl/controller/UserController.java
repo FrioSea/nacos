@@ -92,7 +92,7 @@ public class UserController {
         HttpServletRequest request) throws AccessException, IOException {
         
         String authSystemType = getServerAuthConfig().getNacosAuthSystemType();
-        if (AuthSystemTypes.isNacosCompatible(authSystemType)
+        if (AuthSystemTypes.NACOS.name().equalsIgnoreCase(authSystemType)
             || AuthSystemTypes.LDAP.name().equalsIgnoreCase(authSystemType)) {
             NacosUser user;
             try {

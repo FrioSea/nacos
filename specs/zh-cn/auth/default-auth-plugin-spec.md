@@ -110,20 +110,26 @@ LDAP 插件持有不可变的 effective 配置快照。Spring LDAP context 和 t
 token 签名和有效期、Nacos 用户与角色存储及授权仍使用 `auth:nacos` 配置的基础设施，相关
 共享字段不复制到 `auth:ldap` definitions。
 
-## Oracle 鉴权类型
+## Oracle 存储适配插件
 
-设置 `nacos.plugin.auth.type=oracle` 激活 `nacos-oracle-auth-plugin` 鉴权类型。它保持
-`auth:nacos` 的身份模型（本地 `users` 表 + bcrypt 密码，登录和管理员初始化行为一致），
-并将权限持久化替换为 Oracle 适配实现：权限表列名为 `resources`（因 `resource` 是
-Oracle 保留字），查询时以带引号的 `"resource"` 别名返回。其余部分——Controller、用户与
-角色存储、token、缓存、可见性授权——继续使用默认鉴权插件的基础设施。
+`nacos-oracle-auth-plugin` 模块将默认鉴权插件的外部存储持久化适配到 Oracle 数据库，
+不修改任何默认鉴权插件类。它按存储方言激活，而不是按鉴权类型激活：当
+`nacos.plugin.datasource-dialect.type=oracle` 且部署形态为外部存储的 server/merged 时，
+插件注册 primary 的用户、角色、权限持久化 Bean，使所有按类型注入默认持久化接口的
+位置解析到 Oracle 适配实现；默认持久化 Bean 仍会注册但不再被使用。
 
 要求与行为：
 
-- 必须同时配置 `nacos.plugin.datasource-dialect.type=oracle`，否则启动时快速失败；
-- 仅适用于外部存储的 server 部署；独立 console 无持久化，仅按类型名选择插件；
-- 默认鉴权插件的外部存储持久化 Bean 以 `@ConditionalOnMissingBean` 注册，本插件据此在
-  默认装配之前覆盖权限持久化实现。
+- 鉴权类型保持 `nacos`：身份模型、登录、管理员初始化、token、缓存、可见性授权继续
+  使用默认鉴权插件，行为不变；
+- 权限表列名为 `resources`（`resource` 是 Oracle 保留字），查询时以带引号的
+  `"resource"` 别名返回，共享的权限 RowMapper 按相同列标签读取；
+- 列表查询通过插件自带的分页实现使用 Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`
+  语法，因为默认分页工厂没有 Oracle 适配器，其兜底会执行不带分页子句的 SQL；
+- `LIKE` 查询显式追加 `ESCAPE '\'` 子句，与默认插件对嵌入式 Derby 存储的做法一致；
+- 实际数据源方言不是 Oracle 时，插件在启动时快速失败；
+- 非 Oracle 方言、嵌入式存储或独立 console 下，本装配完全退避，行为与默认鉴权插件
+  完全一致。
 
 ## 身份
 

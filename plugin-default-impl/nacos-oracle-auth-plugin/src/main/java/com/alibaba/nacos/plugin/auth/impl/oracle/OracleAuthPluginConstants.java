@@ -16,14 +16,19 @@
 
 package com.alibaba.nacos.plugin.auth.impl.oracle;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-class OracleAuthPluginServiceTest {
+/**
+ * Constants of the Oracle auth plugin.
+ *
+ * @author liam
+ */
+public final class OracleAuthPluginConstants {
     
-    @Test
-    void testAuthServiceNameIsOracle() {
-        assertEquals("oracle", new OracleAuthPluginService().getAuthServiceName());
+    /**
+     * Datasource dialect type that activates this plugin, mirrored from the Oracle datasource
+     * dialect plugin.
+     */
+    public static final String ORACLE_DATA_SOURCE_TYPE = "oracle";
+    
+    private OracleAuthPluginConstants() {
     }
 }

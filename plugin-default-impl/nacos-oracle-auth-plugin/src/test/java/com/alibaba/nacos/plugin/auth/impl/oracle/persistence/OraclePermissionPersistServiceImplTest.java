@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -37,6 +36,7 @@ import org.springframework.jdbc.core.RowMapper;
 import java.lang.reflect.Field;
 import java.util.Collections;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -58,9 +58,13 @@ class OraclePermissionPersistServiceImplTest {
     
     private DataSourceService dataSourceServiceCache;
     
+    private OraclePermissionPersistServiceImpl oraclePermissionPersistService;
+    
     @BeforeEach
     void setUp() throws Exception {
+        when(jdbcTemplate.queryForObject(any(), any(), eq(Integer.class))).thenReturn(1);
         when(dataSourceService.getJdbcTemplate()).thenReturn(jdbcTemplate);
+        when(dataSourceService.getDataSourceType()).thenReturn("oracle");
         embeddedStorageCache = DatasourceConfiguration.isEmbeddedStorage();
         DatasourceConfiguration.setEmbeddedStorage(false);
         Field datasourceField = DynamicDataSource.class.getDeclaredField("basicDataSourceService");
@@ -68,6 +72,8 @@ class OraclePermissionPersistServiceImplTest {
         dataSourceServiceCache =
             (DataSourceService) datasourceField.get(DynamicDataSource.getInstance());
         datasourceField.set(DynamicDataSource.getInstance(), dataSourceService);
+        oraclePermissionPersistService = new OraclePermissionPersistServiceImpl();
+        oraclePermissionPersistService.init();
     }
     
     @AfterEach
@@ -79,57 +85,74 @@ class OraclePermissionPersistServiceImplTest {
     }
     
     @Test
-    void testInitFailsFastWhenDialectIsNotOracle() {
-        when(dataSourceService.getDataSourceType()).thenReturn("mysql");
-        
-        assertThrows(IllegalStateException.class,
-            () -> new OraclePermissionPersistServiceImpl().init());
+    void testAddPermissionUsesResourcesColumn() {
+        oraclePermissionPersistService.addPermission("role", "resource", "action");
+        verify(jdbcTemplate)
+            .update("INSERT INTO permissions (role, resources, action) VALUES (?, ?, ?)", "role",
+                "resource", "action");
     }
     
     @Test
-    void testInsertAndDeleteUseResourcesColumn() {
-        when(dataSourceService.getDataSourceType()).thenReturn("oracle");
-        OraclePermissionPersistServiceImpl service = new OraclePermissionPersistServiceImpl();
-        service.init();
-        
-        service.addPermission("role", "resource", "action");
-        verify(jdbcTemplate).update(
-            "INSERT INTO permissions (role, resources, action) VALUES (?, ?, ?)",
-            "role", "resource", "action");
-        
-        service.deletePermission("role", "resource", "action");
+    void testDeletePermissionUsesResourcesColumn() {
+        oraclePermissionPersistService.deletePermission("role", "resource", "action");
         verify(jdbcTemplate)
             .update("DELETE FROM permissions WHERE role=? AND resources=? AND action=?", "role",
                 "resource", "action");
     }
     
     @Test
-    void testSelectUsesQuotedResourceAliasWithOraclePaging() {
-        when(dataSourceService.getDataSourceType()).thenReturn("oracle");
-        when(jdbcTemplate.queryForObject(any(), any(), eq(Integer.class))).thenReturn(1);
-        when(jdbcTemplate.query(any(String.class), any(Object[].class), any(RowMapper.class)))
-            .thenReturn(Collections.emptyList());
-        OraclePermissionPersistServiceImpl service = new OraclePermissionPersistServiceImpl();
-        service.init();
+    void testGetPermissionsSelectsQuotedAliasWithOraclePaging() {
+        Page<PermissionInfo> page = oraclePermissionPersistService.getPermissions("role", 1, 10);
         
-        Page<PermissionInfo> page = service.getPermissions("role", 1, 10);
-        
+        assertEquals(1, page.getTotalCount());
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).query(sqlCaptor.capture(), any(Object[].class), any(RowMapper.class));
-        assertTrue(sqlCaptor.getValue().contains("resources AS \"resource\""));
-        assertTrue(sqlCaptor.getValue().contains("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"));
+        assertTrue(sqlCaptor.getValue()
+            .contains("SELECT role,resources AS \"resource\",action FROM permissions WHERE"));
+        assertTrue(sqlCaptor.getValue().endsWith("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"));
     }
     
     @Test
-    void testInsertUsesResourcesEvenIfDialectReportsMysql() {
-        // resolveDialectColumns is overridden unconditionally; the dialect mismatch itself is
-        // rejected by init(), this test documents the column choice isolation.
-        Mockito.doReturn("oracle").when(dataSourceService).getDataSourceType();
+    void testGetPermissionsPagingArgsContainOffsetAndFetch() {
+        when(jdbcTemplate.queryForObject(any(), any(), eq(Integer.class))).thenReturn(25);
+        when(jdbcTemplate.query(any(String.class), any(Object[].class), any(RowMapper.class)))
+            .thenReturn(Collections.emptyList());
+        
+        oraclePermissionPersistService.getPermissions("role", 2, 10);
+        
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(any(String.class), argsCaptor.capture(), any(RowMapper.class));
+        assertEquals(3, argsCaptor.getValue().length);
+        assertEquals("role", argsCaptor.getValue()[0]);
+        assertEquals(10, argsCaptor.getValue()[1]);
+        assertEquals(10, argsCaptor.getValue()[2]);
+    }
+    
+    @Test
+    void testFindPermissionsLike4PageUsesQuotedAliasAndOraclePaging() {
+        when(jdbcTemplate.query(any(String.class), any(Object[].class), any(RowMapper.class)))
+            .thenReturn(Collections.emptyList());
+        
+        oraclePermissionPersistService.findPermissionsLike4Page("rol*", 1, 10);
+        
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(Object[].class), any(RowMapper.class));
+        assertTrue(sqlCaptor.getValue()
+            .contains("SELECT role,resources AS \"resource\",action FROM permissions"));
+        assertTrue(sqlCaptor.getValue().contains("role LIKE ? ESCAPE '\\' "));
+        assertTrue(sqlCaptor.getValue().endsWith("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY"));
+    }
+    
+    @Test
+    void testInitFailsFastOnNonOracleDialect() {
+        when(dataSourceService.getDataSourceType()).thenReturn("mysql");
         OraclePermissionPersistServiceImpl service = new OraclePermissionPersistServiceImpl();
-        service.init();
-        service.addPermission("role", "resource", "action");
-        verify(jdbcTemplate)
-            .update("INSERT INTO permissions (role, resources, action) VALUES (?, ?, ?)", "role",
-                "resource", "action");
+        assertThrows(IllegalStateException.class, service::init);
+    }
+    
+    @Test
+    void testGenerateLikeArgument() {
+        assertEquals("ro\\_le%", oraclePermissionPersistService.generateLikeArgument("ro_le*"));
+        assertEquals("plain", oraclePermissionPersistService.generateLikeArgument("plain"));
     }
 }

@@ -16,37 +16,130 @@
 
 package com.alibaba.nacos.plugin.auth.impl.oracle.persistence;
 
-import com.alibaba.nacos.persistence.constants.PersistenceConstant;
-import com.alibaba.nacos.plugin.auth.impl.persistence.ExternalPermissionPersistServiceImpl;
-import jakarta.annotation.PostConstruct;
+import com.alibaba.nacos.api.model.Page;
+import com.alibaba.nacos.common.utils.StringUtils;
+import com.alibaba.nacos.plugin.auth.impl.persistence.AuthPaginationHelper;
+import com.alibaba.nacos.plugin.auth.impl.persistence.PermissionInfo;
+import com.alibaba.nacos.plugin.auth.impl.persistence.PermissionPersistService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static com.alibaba.nacos.plugin.auth.impl.persistence.AuthRowMapperManager.PERMISSION_ROW_MAPPER;
 
 /**
- * Oracle adapted permission persistence. {@code resource} is a reserved word on Oracle, so the
- * physical column is named {@code resources} and must be selected with a quoted
- * {@code "resource"} alias (see {@link ExternalPermissionPersistServiceImpl#resolveDialectColumns()}).
- * This implementation forces the Oracle column names instead of resolving them from the
- * datasource type, and fails fast when the datasource dialect is not Oracle.
+ * Oracle adapted permission persist service. {@code resource} is a reserved word on Oracle, so
+ * the physical column is named {@code resources} and must be selected with a quoted
+ * {@code "resource"} alias; the alias keeps {@code PermissionRowMapper} reading by the same
+ * column label on every database. The SQL is otherwise a port of the default
+ * {@code ExternalPermissionPersistServiceImpl}, so the default auth plugin stays untouched and
+ * this service takes it over via a primary bean definition.
  *
  * @author liam
  */
-public class OraclePermissionPersistServiceImpl extends ExternalPermissionPersistServiceImpl {
+public class OraclePermissionPersistServiceImpl extends AbstractOracleAuthPersistService
+    implements PermissionPersistService {
     
-    @PostConstruct
+    private static final Logger LOGGER = LoggerFactory.getLogger("com.alibaba.nacos.persistence");
+    
     @Override
-    protected void init() {
-        super.init();
-        String dataSourceType = getDataSourceType();
-        if (!PersistenceConstant.ORACLE.equalsIgnoreCase(dataSourceType)) {
-            throw new IllegalStateException(
-                "nacos.plugin.auth.type=oracle requires nacos.plugin.datasource-dialect.type=oracle, "
-                    + "but the current datasource dialect is '" + dataSourceType
-                    + "'. Please align the two properties or use the default nacos auth type.");
+    public Page<PermissionInfo> getPermissions(String role, int pageNo, int pageSize) {
+        AuthPaginationHelper<PermissionInfo> helper = createPaginationHelper();
+        
+        String sqlCountRows = "SELECT count(*) FROM permissions WHERE ";
+        String sqlFetchRows =
+            "SELECT role,resources AS \"resource\",action FROM permissions WHERE ";
+        
+        String where = " role= ? ";
+        List<String> params = new ArrayList<>();
+        if (StringUtils.isNotBlank(role)) {
+            params = Collections.singletonList(role);
+        } else {
+            where = " 1=1 ";
+        }
+        try {
+            Page<PermissionInfo> pageInfo =
+                helper.fetchPage(sqlCountRows + where, sqlFetchRows + where, params.toArray(),
+                    pageNo, pageSize, PERMISSION_ROW_MAPPER);
+            if (pageInfo == null) {
+                pageInfo = new Page<>();
+                pageInfo.setTotalCount(0);
+                pageInfo.setPageItems(new ArrayList<>());
+            }
+            return pageInfo;
+        } catch (CannotGetJdbcConnectionException e) {
+            LOGGER.error("[db-error] " + e.toString(), e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Execute add permission operation.
+     *
+     * @param role     role string value.
+     * @param resource resource string value.
+     * @param action   action string value.
+     */
+    @Override
+    public void addPermission(String role, String resource, String action) {
+        String sql = "INSERT INTO permissions (role, resources, action) VALUES (?, ?, ?)";
+        try {
+            jt.update(sql, role, resource, action);
+        } catch (CannotGetJdbcConnectionException e) {
+            LOGGER.error("[db-error] " + e.toString(), e);
+            throw e;
+        }
+    }
+    
+    /**
+     * Execute delete permission operation.
+     *
+     * @param role     role string value.
+     * @param resource resource string value.
+     * @param action   action string value.
+     */
+    @Override
+    public void deletePermission(String role, String resource, String action) {
+        String sql = "DELETE FROM permissions WHERE role=? AND resources=? AND action=?";
+        try {
+            jt.update(sql, role, resource, action);
+        } catch (CannotGetJdbcConnectionException e) {
+            LOGGER.error("[db-error] " + e.toString(), e);
+            throw e;
         }
     }
     
     @Override
-    protected void resolveDialectColumns() {
-        resourceColumn = "resources";
-        resourceAlias = "\"resource\"";
+    public Page<PermissionInfo> findPermissionsLike4Page(String role, int pageNo, int pageSize) {
+        AuthPaginationHelper<PermissionInfo> helper = createPaginationHelper();
+        
+        String sqlCountRows = "SELECT count(*) FROM permissions ";
+        String sqlFetchRows = "SELECT role,resources AS \"resource\",action FROM permissions ";
+        
+        StringBuilder where = new StringBuilder(" WHERE 1=1");
+        List<String> params = new ArrayList<>();
+        if (StringUtils.isNotBlank(role)) {
+            where.append(" AND role LIKE ?");
+            where.append(SQL_ORACLE_ESCAPE_BACK_SLASH_FOR_LIKE);
+            params.add(generateLikeArgument(role));
+        }
+        try {
+            Page<PermissionInfo> pageInfo =
+                helper.fetchPage(sqlCountRows + where, sqlFetchRows + where, params.toArray(),
+                    pageNo, pageSize, PERMISSION_ROW_MAPPER);
+            if (pageInfo == null) {
+                pageInfo = new Page<>();
+                pageInfo.setTotalCount(0);
+                pageInfo.setPageItems(new ArrayList<>());
+            }
+            return pageInfo;
+        } catch (CannotGetJdbcConnectionException e) {
+            LOGGER.error("[db-error] " + e.toString(), e);
+            throw e;
+        }
     }
 }

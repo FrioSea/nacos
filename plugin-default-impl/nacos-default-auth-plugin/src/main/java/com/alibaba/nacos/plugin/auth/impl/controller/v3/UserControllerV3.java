@@ -127,7 +127,8 @@ public class UserControllerV3 {
             password = PasswordGeneratorUtil.generateRandomPassword();
         }
         
-        if (AuthSystemTypes.isNacosCompatible(getServerAuthConfig().getNacosAuthSystemType())) {
+        if (AuthSystemTypes.NACOS.name()
+            .equalsIgnoreCase(getServerAuthConfig().getNacosAuthSystemType())) {
             if (iAuthenticationManager.hasGlobalAdminRole()) {
                 return Result.failure(HttpStatus.CONFLICT.value(), "have admin user cannot use it.",
                     null);
@@ -300,7 +301,7 @@ public class UserControllerV3 {
     public Object login(HttpServletResponse response, HttpServletRequest request)
         throws AccessException, IOException {
         String authSystemType = getServerAuthConfig().getNacosAuthSystemType();
-        if (AuthSystemTypes.isNacosCompatible(authSystemType)
+        if (AuthSystemTypes.NACOS.name().equalsIgnoreCase(authSystemType)
             || AuthSystemTypes.LDAP.name().equalsIgnoreCase(authSystemType)) {
             NacosUser user;
             try {
