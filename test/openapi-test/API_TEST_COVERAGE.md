@@ -27,6 +27,12 @@ Its rows strengthen the existing A2A, Agent, Search, Console, and RAD surface
 coverage rather than creating new HTTP operations, so their status does not
 change the API-surface totals below.
 
+Shared HTTP `Nacos-Request-Id` propagation into the server's process-local request
+context is verified by focused `core` module tests. The
+[request metadata matrix](CLIENT_API_TEST_SCENARIOS.md#http-request-context-metadata)
+records the boundary and cleanup scenarios and why standalone API responses cannot
+assert this internal state. Endpoint coverage counts remain unchanged.
+
 ## Maintenance Rules
 
 - Update the matching scenario document whenever an OpenAPI/AdminAPI/ConsoleAPI
@@ -135,6 +141,11 @@ metadata, API-side secret masking, plugin-type execution/criticality metadata,
 critical disable rejection, exclusive restart-only selection, and OIDC restart-only update
 rejection. It also verifies local-only runtime mutation and empty-map source
 clear through refreshed detail metadata.
+The plugin Console row remains `Partial`: availability checks verify true node values and
+list-count consistency for an enabled plugin, both required parameters, and unknown-plugin
+errors. Standalone IT cannot exercise remote-member fan-out. Core regression tests verify
+the payload SPI and real request/response serialization for single-plugin and query-all
+cluster probes (issue #15836); automated multi-node aggregation remains a cluster-test gap.
 Persisted runtime mutation remains partial to avoid carrying plugin state into
 later SDK suites in the shared standalone process; persisted full-map
 replacement, source fallback, effect mode checks, same-source sensitive value
@@ -389,7 +400,26 @@ Console 各执行一遍，保留原400/404及23000/20004/50100断言、错误详
 全部通过，三项原错误码问题已消除。旧构件对照复现三项原失败及相同 Naming 失败，后者登记为
 CONSOLE-NAMING-01；不放宽断言，不将其计为通过。详见上述验证记录。
 
+## Console identity-only remote delegation (#15883)
+
+`IdentityOnlyAuthorizationITCase` covers the three Console `ONLY_IDENTITY` operations with
+missing, invalid, blank, and valid identities. The valid no-permission identity scenario must
+run in both merged and independent Console deployments; independent mode additionally verifies
+that the Console-to-Server Maintainer call uses the configured server identity for the internal
+delegation instead of applying the target Admin API's unrelated resource permission.
+
 Agent/MCP visibility coverage: the existing Agent Admin, Agent Console and MCP rows include independent scope updates and default PUBLIC creation. `AiResourceVisibilityOpenApiITCase` strengthens those rows with auth-enabled non-owner READ/WRITE and explicit grant/revoke tests; it does not add a new counted API surface. Default creation tests do not grant explicit visibility to their readers. Auth-disabled runs cannot validate isolation. Existing unrelated coverage gaps remain unchanged.
+
+Skill frontmatter (#15345) is covered on Admin and Console lists through draft
+creation/update, draft deletion, publish and version online/offline transitions.
+Both Skill API scenario matrices record null/legacy behavior and deterministic
+CAS coverage in service unit tests. Lists must not load per-item versions or
+package storage. HTTP IT verifies generated reserved fields and an untruncated
+projection; service unit tests cover custom-field priority and all snapshot
+limits while preserving complete version metadata. They also verify that malformed
+historical `ai_resource.ext` metadata cannot fail list or detail requests.
+Historical backfill and frontmatter search are out of scope. Existing `pageSize`
+behavior is unchanged.
 
 ## Config detail schema (#15853)
 

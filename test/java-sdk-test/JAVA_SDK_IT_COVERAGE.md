@@ -38,6 +38,28 @@ HTTP API IT CI and should build this module without executing SDK IT cases.
 Destructive restart and cluster cases run through
 [`../DEFAULT_AUTH_RELIABILITY_IT.md`](../DEFAULT_AUTH_RELIABILITY_IT.md).
 
+## JSON Runtime Dependency Isolation (#15788)
+
+The `jackson3-sdk-test` profile verifies Jackson 2/3 coexistence and explicit
+Jackson 3 selection. It does not prove that Jackson 2 can be removed.
+
+The `jackson3-only-sdk-test` profile, combined with `java-sdk-integration-test`,
+removes Jackson 2 core/databind from the Failsafe JVM, including transitive
+copies from Maintainer SDK dependencies. Shared Jackson annotations remain.
+`JsonAdapterJavaSdkITCase` asserts that the removed classes cannot be loaded,
+checks the selected adapter, generic serialization and controlled malformed
+JSON errors. The same profile reuses all ordinary Config and Naming ITs for
+factory/lifecycle, remote reads/writes, boundary cases and listeners. Run it
+once with `-Dnacos.client.json.adapter=auto` and once with `jackson3`.
+
+`client-basic` also provides `jackson3-only-test` for existing default-login,
+OIDC and RAM STS tests against the same isolated runtime. Their HTTP fixtures
+are local mocks; external OIDC/RAM identity providers are not covered here.
+Other SDK domains and deprecated Jackson-specific `JacksonUtils` APIs are
+outside this profile. The latter still require Jackson 2 by their signatures.
+This is a cross-cutting runtime check, not a new public SDK interface; existing
+interface coverage denominators are unchanged.
+
 ## Agent model consolidation regression
 
 Agent/RAD concrete models now use `model.agent`; client-only requests use
@@ -83,7 +105,7 @@ documented `SignType.LOCK` guard.
 
 | SDK interface | IT class | Status | Scenario coverage | Known gaps |
 | --- | --- | --- | --- | --- |
-| `ConfigService` | `ConfigServiceJavaSdkITCase` | Covered | Verifies factory creation, publish/query/getConfigWithResult/CAS/remove lifecycle, missing-result shape, missing/idempotent removal, standalone `addListener`, listener removal behavior, null listener rejection for add/sign/remove paths, client-side invalid parameter handling, valid `JSON` type metadata, unknown type compatibility, config filter request/response transformation, fuzzy-watch matched keys/add/delete/cancel behavior, missing config behavior, shutdown cleanup, Request/Result pattern API lifecycle (`GetConfigRequest`/`PublishConfigRequest`/`RemoveConfigRequest` with `PublishConfigResult`/`RemoveConfigResult`), CAS failure with detailed error code and message, and query result metadata assertion (content/md5/configType/encryptedDataKey). | `getConfig` timeout simulation is intentionally excluded from standalone Java SDK IT because it is not deterministic to force against the shared running server. |
+| `ConfigService` | `ConfigServiceJavaSdkITCase` | Covered | Verifies factory creation, publish/query/getConfigWithResult/CAS/remove lifecycle, missing-result shape, missing/idempotent removal, standalone `addListener`, listener removal behavior, null listener rejection for add/sign/remove paths, client-side invalid parameter handling, valid `JSON` type metadata, unknown type compatibility, config filter request/response transformation, fuzzy-watch matched keys/add/delete/cancel behavior, missing config behavior, shutdown cleanup, Request/Result pattern API lifecycle (`GetConfigRequest`/`PublishConfigRequest`/`RemoveConfigRequest` with `PublishConfigResult`/`RemoveConfigResult`), CAS failure with detailed error code and message, and query result metadata assertion (content/md5/configType/encryptedDataKey). | `getConfig` timeout simulation is intentionally excluded from standalone Java SDK IT because it is not deterministic to force against the shared running server. Snapshot-switch initialization and cleanup failures are covered by `SnapShotSwitchTest`; standalone SDK IT does not currently isolate the JVM-global switch or inject local filesystem failures. |
 | `NamingService` | `NamingServiceJavaSdkITCase` | Partial | Verifies factory creation, explicit/default group registration, string and `Instance` overloads, cluster string overloads, duplicate register idempotency, single persistent instance lifecycle, missing/repeated deregister idempotency, batch register, empty batch register no-op behavior, partial batch deregister, current null-list batch pre-remote failure behavior, query/select/list/deregister lifecycle, subscribe=true cached refresh, service-list pagination and deprecated selector overload boundaries, cluster and metadata behavior, explicit unhealthy selection, disabled/zero-weight filtering, subscribe callback delivery, subscribe state, cluster and public selector listener filtering, fuzzy-watch matched service keys/add/cancel behavior, null listener no-op, unsubscribe-stop behavior, validation for blank service, null instance, blank instance IP, invalid port/cluster, invalid heartbeat metadata, persistent batch member, empty batch deregister, mismatched group prefix, missing service empty result, no-healthy selection failure, and shutdown cleanup. | Fuzzy-watch delete-service events are not stable through public instance deregistration because the SDK has no public service delete API. |
 | `AiService` / `A2aService` | `AiServiceJavaSdkITCase`, `McpHttpClientJavaSdkITCase` | Partial | Runs stable MCP functionality only after the fixture reaches `LIFECYCLE_MANAGED`. Verifies factory creation, MCP gRPC/HTTP release/query/subscribe, omitted and explicit `createDraft=false` direct-online compatibility, `createDraft=true` draft creation, MCP latest-published and duplicate-version controlled errors, Tool/Resource content, direct MCP endpoint-spec release, versioned and default/latest HTTP MCP Endpoint register/query/idempotent-register/deregister for remote REF servers, missing MCP Endpoint controlled error, MCP stdio Endpoint controlled error, invalid HTTP arguments, A2A Agent Card release/query/subscribe/unsubscribe-stop, A2A latest-version behavior, A2A duplicate-version idempotency, A2A missing-card get behavior, single/batch/TLS A2A Endpoint registration with endpoint-detail assertion, current-value listener callbacks, missing-resource nullable MCP/A2A/Prompt subscribe shapes, Skill/AgentSpec HTTP fallback and missing-resource nullable shapes, missing Skill download controlled exception, SDK validation for MCP/A2A/Prompt/Skill/AgentSpec required parameters, Endpoint validation, batch Endpoint version mismatch, and shutdown cleanup. Cross-contract IT additionally verifies Endpoint pre-registration before definition, exact/latest subscription convergence, cached resubscribe polling, and Agent plus MCP publication redo through a real standalone restart. | MCP migration behavior is owned by `McpUpgradeMigrationJavaSdkITCase`; MCP unsubscribe-stop behavior and the remaining Prompt/Skill label-selection variants remain. No known first-version A2A AgentCard or Endpoint lifecycle gap remains. |
 | Historical `A2aService` Runtime migration | `A2aUpgradeMigrationJavaSdkITCase` | Covered | Against an `AUTO/SYNCING` release server, verifies old A2A single and complete-batch Endpoint publication into both historical exact-Version Naming and canonical RAD Runtime layouts, URI/path equality, independent multi-Version child publishers, one logical capacity charge across dual physical layouts, typed over-threshold rejection without cached retry state, slot reuse, connection-close cleanup, and fresh-publisher reuse. An opt-in controlled real restart keeps the SDK process alive and verifies redo of two exact Versions into both layouts plus isolated post-restart deregistration. Directed terminal methods retain one live publication through cutover, compare frozen shadow `true` and `false`, verify gRPC/HTTP Watch de-duplication, and restart a canonical-aware server locally configured as `LEGACY` to prove the marker remains authoritative. Directed three-member methods verify exact-Version replacement/deregistration through every Distro replica and a real 0/3-to-3/3 rolling cutover with fixed-node plus load-balanced reads. | A truly legacy-only binary cannot interpret the marker and remains a deployment/runbook exclusion rather than a destructive executable cluster case. |
@@ -184,6 +206,14 @@ is covered by API UT; the affected public SDK end-to-end checks are maintained i
 No Client SDK coverage status is upgraded by those results.
 
 Agent/MCP visibility additions: `AgentPublishJavaSdkITCase` and `McpHttpClientJavaSdkITCase` verify HTTP/gRPC default-public creation, separate READ-only consumers, private/public transitions, and Agent publication retry preserving PRIVATE. No Client SDK signature changes are introduced. The additional `shouldInvalidateWatchAfterScopeBecomesPrivate` regression is disabled with `DAUTH-F05`: auth-enabled HTTP Watch failed to produce the initial snapshot before any scope mutation. Its UNAVAILABLE/error/payload assertions remain intact for restoration after the independent identity fix. Existing restart and environment-gated coverage remain unchanged.
+
+Skill frontmatter (#15345) impact analysis: the additive `SkillSummary.frontMatter`
+and `SkillSummary.frontMatterTruncated` fields belong to Admin/Console and Maintainer
+SDK list/metadata responses.
+Runtime `SkillService` downloads and subscribes to ZIP bytes, so its return values,
+listener, lifecycle and exception contracts are unchanged. External SDK coverage for the new
+field is in `test/maintainer-sdk-test` (`AiMaintainerServiceMaintainerSdkITCase`);
+legacy JSON deserialization is covered by `SkillSummaryTest` in `api`.
 
 ## Config detail schema impact (#15853)
 
